@@ -1,0 +1,6 @@
+# Ignore Emacs backup files
+*~
+
+# Ignore binary directories
+bin/*
+obj/*

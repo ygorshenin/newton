@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <iostream>
 
+#include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
@@ -54,8 +55,8 @@ inline void ComputeProjection(const ublas::matrix<T>& tr_A,
 			      const ublas::vector<T>* projection,
 			      const ublas::vector<T>* projection_plus) {
   *projection = x + ublas::prod(tr_A, p) - beta * c;
-  for (ublas::vector<T>::size_type i = 0; i < projection->size(); ++i)
-    (*projection_plus)(i) = std::max(kZero, (*projection)(i));
+  for (typename ublas::vector<T>::size_type i = 0; i < projection->size(); ++i)
+    (*projection_plus)(i) = std::max(static_cast<T>(0), (*projection)(i));
 }
 
 // Solves forward linear programming problem tr(c) * x -> min, where x
@@ -70,16 +71,16 @@ void NewtonMethod(const ublas::matrix<T>& A,
 		  double beta,
 		  double external_tolerance,
 		  double internal_tolerance) {
-  const kZero = static_cast<T>(0);
-  const kOne = static_cast<T>(1);
+  const T kZero = static_cast<T>(0);
+  const T kOne = static_cast<T>(1);
 
-  const ublas::identity_matrix<T> I(m, m);
-
-  const ublas::matrix<T>::size_type m = A.size1(), n = A.size2();
+  const typename ublas::matrix<T>::size_type m = A.size1(), n = A.size2();
   assert(b.size() == m);
   assert(c.size() == n);
   assert(x.size() == n);
   assert(p.size() == m);
+
+  const ublas::identity_matrix<T> I(m, m);
 
   ublas::matrix<T> tr_A = ublas::trans(A);
   ublas::zero_matrix<T> D(n, n);
@@ -92,7 +93,7 @@ void NewtonMethod(const ublas::matrix<T>& A,
   do {
     do {
       ComputeProjection(tr_A, c, x, p, beta, &projection, &projection_plus);
-      for (ublas::matrix<T>::size_type i = 0; i < n; ++i)
+      for (typename ublas::matrix<T>::size_type i = 0; i < n; ++i)
 	D(i, i) = projection(i) > kZero ? kOne : kZero;
       G = b - A * projection_plus;
       H = I + A * D * tr_A;
