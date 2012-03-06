@@ -4,12 +4,12 @@
 #include <cassert>
 #include <cstddef>
 
+namespace math {
+
 using boost::numeric::ublas::inner_prod;
 using boost::numeric::ublas::norm_2;
 using boost::numeric::ublas::prod;
 using boost::numeric::ublas::trans;
-
-namespace math {
 
 void Newton::SolveLinearSystem(const Matrix& A,
 			       const Vector& b,
