@@ -2,7 +2,7 @@ CPP = g++
 CPPFLAGS = -Wall -g -I$(BOOST_ROOT)
 
 BOOST_ROOT = /usr/local/boost_1_49_0
-BOOST_LIBS = program_options
+BOOST_LIBS = 
 LDFLAGS = $(addprefix $(BOOST_ROOT)/stage/lib/, \
 	$(addsuffix .a, $(addprefix libboost_, $(BOOST_LIBS))))
 
