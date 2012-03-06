@@ -1,5 +1,5 @@
 CPP = g++
-CPPFLAGS = -Wall -g -I$(BOOST_ROOT)
+CPPFLAGS = -Wall -g -I$(BOOST_ROOT) -Isrc
 
 BOOST_ROOT = /usr/local/boost_1_49_0
 BOOST_LIBS = 
@@ -7,7 +7,7 @@ LDFLAGS = $(addprefix $(BOOST_ROOT)/stage/lib/, \
 	$(addsuffix .a, $(addprefix libboost_, $(BOOST_LIBS))))
 
 SRC_DIR = src
-SRC_SUBDIRS = .
+SRC_SUBDIRS = . math
 SRC_DIRS = $(addprefix $(SRC_DIR)/, $(SRC_SUBDIRS))
 SRCS = $(wildcard $(addsuffix /*.cc, $(SRC_DIRS)))
 HDRS = $(wildcard $(addsuffix /*.h, $(SRC_DIRS)))
