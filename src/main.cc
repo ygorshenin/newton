@@ -3,11 +3,10 @@
 #include <iostream>
 #include <iterator>
 
-#include <boost/numeric/ublas/io.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/vector.hpp>
-#include <boost/scoped_ptr.hpp>
-
+#include "boost/numeric/ublas/io.hpp"
+#include "boost/numeric/ublas/matrix.hpp"
+#include "boost/numeric/ublas/vector.hpp"
+#include "boost/scoped_ptr.hpp"
 #include "math/newton.h"
 
 namespace ublas = boost::numeric::ublas;

@@ -2,8 +2,8 @@
 #define MATH_NEWTON_H_
 #pragma once
 
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/vector.hpp>
+#include "boost/numeric/ublas/matrix.hpp"
+#include "boost/numeric/ublas/vector.hpp"
 
 namespace math {
 
