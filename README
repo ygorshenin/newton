@@ -1,0 +1,27 @@
+An implementation of the Newton method for solving linear programming
+problems.
+
+Solves problems in the following form:
+(c, x) -> min, A * x = b, x >= 0.
+
+Takes a description of linear programming problem from the stdin and
+writes answer (optimal vector x* and optimal function value (c, x*))
+to the stdout.
+
+Description of a problem must be given in the following form:
+m n
+
+A_00 ... A_0n
+...       ...
+A_m0 ... A_mn
+
+b_0 ... b_m
+
+c_0 ... c_n
+
+beta external_tolerance internal_tolerance
+
+For details which will be very helpful for understanding the code, see
+article "Parralel implementation of the Newton method for solving
+big-dimensional linear programming problems", V. A. Garanga,
+A. I. Golikov, Y. G. Evtushenko, M. H. Nguen.
