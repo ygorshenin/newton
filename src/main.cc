@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
+#include <iterator>
 
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -11,7 +12,6 @@
 
 namespace ublas = boost::numeric::ublas;
 using boost::scoped_ptr;
-using std::cerr;
 using std::cin;
 using std::cout;
 using std::endl;
@@ -31,13 +31,17 @@ void ReadProblemDescription(std::istream& is,
   is >> *m >> *n;
   
   A->reset(new Matrix(*m, *n));
-  is >> (*A->get());
+  for (size_type i = 0; i < *m; ++i)
+    for (size_type j = 0; j < *n; ++j)
+      cin >> (*A->get())(i, j);
 
   b->reset(new Vector(*m));
-  is >> (*b->get());
+  for (size_type i = 0; i < *m; ++i)
+    cin >> (*b->get())(i);
 
   c->reset(new Vector(*n));
-  is >> (*c->get());
+  for (size_type i = 0; i < *n; ++i)
+    cin >> (*c->get())(i);
 
   is >> *beta >> *external_tolerance >> *internal_tolerance;
 }
@@ -61,7 +65,7 @@ int main(int argc, char** argv) {
 
   Vector x0(n), p0(m);
   std::fill(x0.begin(), x0.end(), 0.0);
-  std::fill(p0.begin(), p0.end(), 0.0);
+  std::fill(p0.begin(), p0.end(), 1.0);
 
   Vector result(n);
   newton.SolveLinearSystem(*A, *b, *c,
@@ -70,6 +74,12 @@ int main(int argc, char** argv) {
 			   external_tolerance,
 			   internal_tolerance,
 			   &result);
-  cout << result << endl;
+  // Display optiomal values.
+  std::copy(result.begin(),
+	    result.end(),
+	    std::ostream_iterator<double>(cout, " "));
+  cout << endl;
+  // Display optiomal function value.
+  cout << ublas::inner_prod(*c, result) << endl;
   return 0;
 }

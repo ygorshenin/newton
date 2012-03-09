@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstddef>
 
+#include "boost/numeric/ublas/io.hpp"
+
 namespace math {
 
 using boost::numeric::ublas::inner_prod;
@@ -40,7 +42,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < n; ++j)
-      D(i, i) = 0.0;
+      D(i, j) = 0.0;
   }
 
   do {
@@ -55,11 +57,11 @@ void Newton::SolveLinearSystem(const Matrix& A,
 
       GetMaximizationDirection(H, g, internal_tolerance, &delta_p);
       p -= delta_p;
-    } while (norm_2(delta_p) < internal_tolerance);
+    } while (norm_2(delta_p) > internal_tolerance);
     ComputeProjection(tr_A, c, x, p, beta, &projection, &projection_plus);
     delta_x = x - projection_plus;
     x = projection_plus;
-  } while (norm_2(delta_x) < external_tolerance);
+  } while (norm_2(delta_x) > external_tolerance);
 
   *result = x;
 }
@@ -73,7 +75,7 @@ void Newton::GetMaximizationDirection(const Matrix& A,
   Matrix M(n, n);
   for (size_type i = 0; i < n; ++i) {
     for (size_type j = 0; j < n; ++j)
-      M(i, i) = 0.0;
+      M(i, j) = 0.0;
     M(i, i) = A(i, i) * A(i, i);
   }
 
@@ -90,7 +92,7 @@ void Newton::GetMaximizationDirection(const Matrix& A,
     *x -= alpha * p;
     r = r0 + alpha * prod(A, p);
 
-    if (abs(*std::max_element(r0.begin(), r0.end())) < epsilon)
+    if (norm_2(r) < epsilon)
       break;
 
     for (size_type i = 0; i < n; ++i)
