@@ -4,6 +4,7 @@
 
 #include "boost/numeric/ublas/matrix.hpp"
 #include "boost/numeric/ublas/vector.hpp"
+#include "boost/scoped_ptr.hpp"
 
 namespace math {
 
@@ -27,21 +28,31 @@ class Newton {
       double beta,
       double external_tolerance,
       double internal_tolerance,
-      Vector* result) const;
+      Vector* result);
 
  private:
+  void Initialize(const Matrix& A,
+		  const Vector& b,
+		  const Vector& c,
+		  const Vector& x0,
+		  const Vector& p0,
+		  Vector* result);
+
   // Solves A * x = b via preconditioned conjugate gradient method.
   void GetMaximizationDirection(const Matrix& A,
 				const Vector& b,
 				double epsilon,
-				Vector* x) const;
+				Vector* x);
   void ComputeProjection(const Matrix& tr_A,
 			 const Vector& c,
 			 const Vector& x,
 			 const Vector& p,
 			 double beta,
 			 Vector* projection,
-			 Vector* projection_plus) const;
+			 Vector* projection_plus);
+
+  size_type m_, n_;
+  ::boost::scoped_ptr<Vector> M_;
 };
 
 }  // namespace math

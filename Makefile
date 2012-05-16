@@ -1,5 +1,5 @@
 CPP = g++
-CPPFLAGS = -Wall -g -I$(BOOST_ROOT) -Isrc
+CPPFLAGS = -Wall -O2 -I$(BOOST_ROOT) -Isrc
 
 BOOST_ROOT = /usr/local/boost_1_49_0
 BOOST_LIBS = 
