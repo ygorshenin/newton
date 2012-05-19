@@ -28,44 +28,45 @@ void Newton::SolveLinearSystem(const Matrix& A,
 
   const IdentityMatrix I(m_, m_);
 
+  Vector d(n_);
   Matrix tr_A = trans(A);
-  Matrix D(n_, n_);
   Vector projection(n_), projection_plus(n_);
   Matrix H(m_, m_);
   Vector g(m_);
   Vector x(x0), p(p0);
   Vector delta_x(n_), delta_p(m_);
 
-  for (size_t i = 0; i < n_; ++i) {
-    for (size_t j = 0; j < n_; ++j)
-      D(i, j) = 0.0;
-  }
-
+  Matrix T0(n_, m_), T1(m_, m_);
+  
   do {
     do {
       ComputeProjection(tr_A, c, x, p, beta,
 			&projection, &projection_plus);
       for (size_type i = 0; i < n_; ++i)
-	D(i, i) = projection(i) > 0.0 ? 1.0 : 0.0;
-      g = prod(A, projection_plus) - b;
+	d(i) = projection(i) > 0.0 ? 1.0 : 0.0;
+      g.assign(prod(A, projection_plus));
+      g.minus_assign(b);
 
-      H = I + prod(A, Matrix(prod(D, tr_A)));
+      // Computing H = I + A * D * tr_A
+      for (size_type i = 0; i < n_; ++i)
+	for (size_type j = 0; j < m_; ++j)
+	  T0(i, j) = d(i) * tr_A(i, j);
+      T1 = prod(A, T0);
+      H = I + T1;
 
       GetMaximizationDirection(H, g, internal_tolerance, &delta_p);
-      p -= delta_p;
-//       std::clog << "p=" << p << std::endl;
-    } while (norm_2(delta_p) > internal_tolerance);
+      p.minus_assign(delta_p);
+    } while (norm_inf(delta_p) > internal_tolerance);
     ComputeProjection(tr_A, c, x, p, beta, &projection, &projection_plus);
-    delta_x = x - projection_plus;
-    x = projection_plus;
+    delta_x.assign(x);
+    delta_x.minus_assign(projection_plus);
+    x.assign(projection_plus);
 
-    g = prod(A, x) - b;
-//     std::clog << "g=" << g << std::endl;
-//     std::clog << "x=" << x << std::endl;
-//     std::clog << "value=" << inner_prod(x, c) << std::endl;
-  } while (norm_2(delta_x) > external_tolerance);
+    g.assign(prod(A, x));
+    g.minus_assign(b);
+  } while (norm_inf(delta_x) > external_tolerance);
 
-  *result = x;
+  result->assign(x);
 }
 
 void Newton::Initialize(const Matrix& A,
@@ -104,13 +105,12 @@ void Newton::GetMaximizationDirection(const Matrix& A,
 
   Vector p(r0_tilded);
   while (true) {
-    double alpha = -inner_prod(r0_tilded, r0) / inner_prod(p, prod(A, p));
-    *x -= alpha * p;
-    r = prod(A, p);
+    r.assign(prod(A, p));
+    double alpha = -inner_prod(r0_tilded, r0) / inner_prod(p, r);
+    x->minus_assign(alpha * p);
     r *= alpha;
-    r += r0;
+    r.plus_assign(r0);
 
-//     std::clog << "r=" << r << std::endl;
     if (norm_inf(r) < epsilon)
       break;
 
@@ -119,10 +119,10 @@ void Newton::GetMaximizationDirection(const Matrix& A,
     double beta = inner_prod(r_tilded, r) / inner_prod(r0_tilded, r0);
     
     p *= beta;
-    p += r_tilded;
+    p.plus_assign(r_tilded);
 
-    r0 = r;
-    r0_tilded = r_tilded;
+    r0.assign(r);
+    r0_tilded.assign(r_tilded);
   }
 }
 
@@ -133,7 +133,9 @@ void Newton::ComputeProjection(const Matrix& tr_A,
 			       double beta,
 			       Vector* projection,
 			       Vector* projection_plus) {
-  *projection = x + prod(tr_A, p) - beta * c;
+  projection->assign(x);
+  projection->plus_assign(prod(tr_A, p));
+  projection->minus_assign(beta * c);
   for (size_type i = 0; i < projection->size(); ++i)
     (*projection_plus)(i) = std::max(0.0, (*projection)(i));
 }

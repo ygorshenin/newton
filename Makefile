@@ -1,10 +1,9 @@
-CPP = g++
-CPPFLAGS = -Wall -O2 -I$(BOOST_ROOT) -Isrc
+CPP = mpic++
+CPPFLAGS = -Wall -DNDEBUG -O2 -I$(BOOST_ROOT) -Isrc
 
-BOOST_ROOT = /usr/local/boost_1_49_0
-BOOST_LIBS = 
-LDFLAGS = $(addprefix $(BOOST_ROOT)/stage/lib/, \
-	$(addsuffix .a, $(addprefix libboost_, $(BOOST_LIBS))))
+BOOST_ROOT = /usr/local/lib
+BOOST_LIBS = mpi serialization
+LDFLAGS = $(addprefix $(BOOST_ROOT)/, $(addsuffix .a, $(addprefix libboost_, $(BOOST_LIBS))))
 
 SRC_DIR = src
 SRC_SUBDIRS = . math

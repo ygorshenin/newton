@@ -10,6 +10,7 @@
 #include "math/newton.h"
 
 namespace ublas = boost::numeric::ublas;
+
 using boost::scoped_ptr;
 using std::cin;
 using std::cout;
@@ -53,6 +54,7 @@ int main(int argc, char** argv) {
   scoped_ptr<Vector> b, c;
   double beta, external_tolerance, internal_tolerance;
 
+  std::clog << "Reading problem description..." << std::endl;
   ReadProblemDescription(cin,
 			 &m, &n,
 			 &A, &b, &c,
@@ -67,6 +69,7 @@ int main(int argc, char** argv) {
   std::fill(p0.begin(), p0.end(), 1.0);
 
   Vector result(n);
+  std::clog << "Solving linear system..." << std::endl;
   newton.SolveLinearSystem(*A, *b, *c,
 			   x0, p0,
 			   beta,
