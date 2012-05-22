@@ -102,7 +102,6 @@ void Newton::GetMaximizationDirection(const Matrix& A,
 
   Vector p(r0_tilded);
   while (true) {
-    // noalias(r) = prod(A, p);
     state_.MasterMultiplyMatrixByVector(p, r);
     double alpha = -inner_prod(r0_tilded, r0) / inner_prod(p, r);
     x->minus_assign(alpha * p);
