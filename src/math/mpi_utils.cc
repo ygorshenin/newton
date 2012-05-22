@@ -82,51 +82,85 @@ void State::MasterInitialize(const Matrix& A) {
   }
   mpi::broadcast(world, A_.get(), num_elems, kMPIRootRank);
 
-  DivideTask(num_rows_, world.size(), &ranges_);
-  from_ = ranges_[0].from;
-  to_ = ranges_[0].to;
+  DivideTask(num_rows_, world.size(), &row_ranges_);
+  row_from_ = row_ranges_[world.rank()].from;
+  row_to_ = row_ranges_[world.rank()].to;
 
-  std::vector<mpi::request> requests;
-  for (int i = 1; i < world.size(); ++i)
-    requests.push_back(world.isend(i, kMessageRange, ranges_[i]));
-  mpi::wait_all(requests.begin(), requests.end());
+  tr_T0_.reset(new double[(row_to_ - row_from_) * num_cols_]);
 
-  tr_T0_.reset(new double[(to_ - from_) * num_cols_]);
-
-  P_.reset(new double[num_rows_ * (to_ - from_)]);
-  tr_P_.reset(new double[(to_ - from_) * num_rows_]);
+  P_.reset(new double[num_rows_ * (row_to_ - row_from_)]);
+  tr_P_.reset(new double[(row_to_ - row_from_) * num_rows_]);
+  H_.reset(new double[num_rows_ * num_rows_]);
   tr_H_.reset(new double[num_rows_ * num_rows_]);
+
+  p_.reset(new double[num_cols_]);
+  r_.reset(new double[num_rows_]);
 }
 
-void State::MasterMultiply(const Vector& d, Matrix& H) {
+void State::MasterComputeH(const Vector& d, Matrix& H) {
   mpi::communicator world;
+  assert(world.rank() == kMPIRootRank);
+
   assert(H.size1() == num_rows_);
   assert(H.size2() == num_rows_);
-  assert(world.rank() == kMPIRootRank);
   assert(d.size() == num_cols_);
 
-  Commands command = kCommandMultiply;
+  Commands command = kCommandComputeH;
   mpi::broadcast(world, command, kMPIRootRank);
 
   std::copy(d.begin(), d.end(), d_.get());
   mpi::broadcast(world, d_.get(), num_cols_, kMPIRootRank);
-  Multiply();
 
-  std::copy(tr_P_.get(), tr_P_.get() + (to_ - from_) * num_rows_, tr_H_.get());
   std::vector<mpi::request> requests;
-  size_t offset = (to_ - from_) * num_rows_;
+  size_t offset = (row_to_ - row_from_) * num_rows_;
   for (int i = 1; i < world.size(); ++i) {
-    size_t block_size = (ranges_[i].to - ranges_[i].from) * num_rows_;
+    size_t block_size = (row_ranges_[i].to - row_ranges_[i].from) * num_rows_;
     requests.push_back(world.irecv(i, kMessageResult, tr_H_.get() + offset, block_size));
     offset += block_size;
   }
+
+  ComputeH();
+  std::copy(tr_P_.get(), tr_P_.get() + (row_to_ - row_from_) * num_rows_, tr_H_.get());
+
   mpi::wait_all(requests.begin(), requests.end());
+
   for (size_t i = 0; i < num_rows_; ++i) {
     for (size_t j = 0; j < num_rows_; ++j) {
-      H(i, j) = tr_H_[j * num_rows_ + i];
+      H(i, j) = H_[i * num_rows_ + j] = tr_H_[j * num_rows_ + i];
     }
+    H_[i * num_rows_ + i] += 1.0;
     H(i, i) += 1.0;
   }
+  mpi::broadcast(world, H_.get(), num_rows_ * num_rows_, kMPIRootRank);
+}
+
+void State::MasterMultiplyMatrixByVector(const Vector& p, Vector& r) {
+  mpi::communicator world;
+  assert(world.rank() == kMPIRootRank);
+  assert(p.size() == num_rows_);
+  assert(r.size() == num_rows_);
+
+  Commands command = kCommandMultiplyMatrixByVector;
+  mpi::broadcast(world, command, kMPIRootRank);
+
+  std::copy(p.begin(), p.end(), p_.get());
+  mpi::broadcast(world, p_.get(), num_rows_, kMPIRootRank);
+
+  std::vector<mpi::request> requests;
+  requests.reserve(world.size());
+  size_t offset = row_to_;
+  for (int i = 1; i < world.size(); ++i) {
+    size_t block_size = row_ranges_[i].to - row_ranges_[i].from;
+    requests.push_back(world.irecv(i, kMessageResult, r_.get() + offset, block_size));
+    offset += block_size;
+  }
+
+  MultiplyMatrixByVector();
+  std::copy(r_.get(), r_.get() + row_to_, r.begin());
+
+  mpi::wait_all(requests.begin(), requests.end());
+
+  std::copy(r_.get(), r_.get() + num_rows_, r.begin());
 }
 
 void State::MasterShutdown() {
@@ -148,8 +182,11 @@ void State::StartSlaveServer() {
   while (is_run) {
     mpi::broadcast(world, command, kMPIRootRank);
     switch (command) {
-    case kCommandMultiply:
-      SlaveMultiply();
+    case kCommandComputeH:
+      SlaveComputeH();
+      break;
+    case kCommandMultiplyMatrixByVector:
+      SlaveMultiplyMatrixByVector();
       break;
     case kCommandStopSlaveServer:
       is_run = false;
@@ -167,6 +204,10 @@ void State::SlaveInitialize() {
   num_rows_ = dimensions.num_rows;
   num_cols_ = dimensions.num_cols;
 
+  DivideTask(num_rows_, world.size(), &row_ranges_);
+  row_from_ = row_ranges_[world.rank()].from;
+  row_to_ = row_ranges_[world.rank()].to;
+
   const size_t num_elems = num_rows_ * num_cols_;
 
   A_.reset(new double[num_elems]);
@@ -174,37 +215,46 @@ void State::SlaveInitialize() {
 
   mpi::broadcast(world, A_.get(), num_elems, kMPIRootRank);
 
-  Range range;
-  world.recv(kMPIRootRank, kMessageRange, range);
-  from_ = range.from;
-  to_ = range.to;
+  tr_T0_.reset(new double[(row_to_ - row_from_) * num_cols_]);
 
-  tr_T0_.reset(new double[(to_ - from_) * num_cols_]);
+  P_.reset(new double[num_rows_ * (row_to_ - row_from_)]);
+  tr_P_.reset(new double[(row_to_ - row_from_) * num_rows_]);
+  H_.reset(new double[num_rows_ * num_rows_]);
 
-  P_.reset(new double[num_rows_ * (to_ - from_)]);
-  tr_P_.reset(new double[(to_ - from_) * num_rows_]);
+  p_.reset(new double[num_cols_]);
+  r_.reset(new double[num_rows_]);
 }
 
-void State::SlaveMultiply() {
+void State::SlaveComputeH() {
   mpi::communicator world;
   assert(world.rank() != kMPIRootRank);
 
   mpi::broadcast(world, d_.get(), num_cols_, kMPIRootRank);
-  Multiply();
-  world.send(kMPIRootRank, kMessageResult, tr_P_.get(), (to_ - from_) * num_rows_);
+  ComputeH();
+  world.send(kMPIRootRank, kMessageResult, tr_P_.get(), (row_to_ - row_from_) * num_rows_);
+  mpi::broadcast(world, H_.get(), num_rows_ * num_rows_, kMPIRootRank);
 }
 
-void State::Multiply() {
+void State::SlaveMultiplyMatrixByVector() {
+  mpi::communicator world;
+  assert(world.rank() != kMPIRootRank);
+
+  mpi::broadcast(world, p_.get(), num_rows_, kMPIRootRank);
+  MultiplyMatrixByVector();
+  world.send(kMPIRootRank, kMessageResult, r_.get() + row_from_, row_to_ - row_from_);
+}
+
+void State::ComputeH() {
   size_t tr_T0_index = 0;
-  for (size_t i = 0; i < (to_ - from_); ++i) {
-    size_t A_base_index = (from_ + i) * num_cols_;
+  for (size_t i = 0; i < (row_to_ - row_from_); ++i) {
+    size_t A_base_index = (row_from_ + i) * num_cols_;
     for (size_t j = 0; j < num_cols_; ++j)
       tr_T0_[tr_T0_index++] = A_[A_base_index + j] * d_[j];
   }
 
   size_t P_index = 0;
   for (size_t i = 0; i < num_rows_; ++i) {
-    for (size_t j = 0; j < (to_ - from_); ++j) {
+    for (size_t j = 0; j < (row_to_ - row_from_); ++j) {
       P_[P_index] = 0.0;
       for (size_t k = 0; k < num_cols_; ++k)
 	P_[P_index] += A_[i * num_cols_ + k] * tr_T0_[j * num_cols_ + k];
@@ -213,9 +263,18 @@ void State::Multiply() {
   }
 
   size_t tr_P_index = 0;
-  for (size_t j = 0; j < (to_ - from_); ++j) {
+  for (size_t j = 0; j < (row_to_ - row_from_); ++j) {
     for (size_t i = 0; i < num_rows_; ++i)
-      tr_P_[tr_P_index++] = P_[i * (to_ - from_) + j];
+      tr_P_[tr_P_index++] = P_[i * (row_to_ - row_from_) + j];
+  }
+}
+
+void State::MultiplyMatrixByVector() {
+  size_t index = row_from_ * num_rows_;
+  for (size_t i = row_from_; i < row_to_; ++i) {
+    r_[i] = 0.0;
+    for (size_t j = 0; j < num_rows_; ++j)
+      r_[i] += H_[index++] * p_[j];
   }
 }
 

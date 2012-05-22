@@ -11,12 +11,6 @@
 namespace math {
 
 struct Range {
-  template<class Archive>
-  void serialize(Archive& ar, unsigned long version) {
-    ar & from;
-    ar & to;
-  }
-
   size_t from, to;
 };
 
@@ -30,13 +24,15 @@ public:
   virtual ~State();
 
   void MasterInitialize(const Matrix& A);
-  void MasterMultiply(const Vector& d, Matrix& H);
+  void MasterComputeH(const Vector& d, Matrix& H);
+  void MasterMultiplyMatrixByVector(const Vector& p, Vector& r);
   void MasterShutdown();
   void StartSlaveServer();
 
 private:
   enum Commands {
-    kCommandMultiply = 0,
+    kCommandComputeH = 0,
+    kCommandMultiplyMatrixByVector,
     kCommandStopSlaveServer,
   };
 
@@ -47,19 +43,27 @@ private:
 
   void MasterDivideTask();
   void SlaveInitialize();
-  void SlaveMultiply();
-  void Multiply();
+  void SlaveComputeH();
+  void SlaveMultiplyMatrixByVector();
+
+  void ComputeH();
+  void MultiplyMatrixByVector();
 
   size_t num_rows_, num_cols_;
-  size_t from_, to_;
   boost::scoped_array<double> A_;
   boost::scoped_array<double> d_;
   boost::scoped_array<double> tr_T0_;
   boost::scoped_array<double> P_;
   boost::scoped_array<double> tr_P_;
+  boost::scoped_array<double> H_;
   boost::scoped_array<double> tr_H_;
 
-  std::vector<Range> ranges_;
+  boost::scoped_array<double> p_;
+  boost::scoped_array<double> r_;
+
+  std::vector<Range> row_ranges_;
+
+  size_t row_from_, row_to_;
 };
 
 }  // namespace math

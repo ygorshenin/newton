@@ -5,6 +5,7 @@
 #include "boost/numeric/ublas/matrix.hpp"
 #include "boost/numeric/ublas/vector.hpp"
 #include "boost/scoped_ptr.hpp"
+#include "math/mpi_utils.h"
 
 namespace math {
 
@@ -53,6 +54,7 @@ class Newton {
 
   size_type m_, n_;
   ::boost::scoped_ptr<Vector> M_;
+  math::State state_;
 };
 
 }  // namespace math
