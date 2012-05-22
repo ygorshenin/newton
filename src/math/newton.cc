@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "boost/numeric/ublas/io.hpp"
+#include "math/mpi_utils.h"
 
 namespace math {
 
@@ -31,13 +32,14 @@ void Newton::SolveLinearSystem(const Matrix& A,
   Vector d(n_);
   Matrix tr_A = trans(A);
   Vector projection(n_), projection_plus(n_);
-  Matrix H(m_, m_);
+  Matrix H(m_, m_), mpi_H(m_, m_);
   Vector g(m_);
   Vector x(x0), p(p0);
   Vector delta_x(n_), delta_p(m_);
 
-  Matrix T0(n_, m_), T1(m_, m_);
-  
+  math::State state;
+  state.MasterInitialize(A);
+
   do {
     do {
       ComputeProjection(tr_A, c, x, p, beta,
@@ -48,11 +50,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
       g.minus_assign(b);
 
       // Computing H = I + A * D * tr_A
-      for (size_type i = 0; i < n_; ++i)
-	for (size_type j = 0; j < m_; ++j)
-	  T0(i, j) = d(i) * tr_A(i, j);
-      T1 = prod(A, T0);
-      H = I + T1;
+      state.MasterMultiply(d, H);
 
       GetMaximizationDirection(H, g, internal_tolerance, &delta_p);
       p.minus_assign(delta_p);
@@ -67,6 +65,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
   } while (norm_inf(delta_x) > external_tolerance);
 
   result->assign(x);
+  state.MasterShutdown();
 }
 
 void Newton::Initialize(const Matrix& A,

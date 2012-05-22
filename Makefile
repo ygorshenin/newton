@@ -3,7 +3,7 @@ CPPFLAGS = -Wall -DNDEBUG -O2 -I$(BOOST_ROOT) -Isrc
 
 BOOST_ROOT = /usr/local/lib
 BOOST_LIBS = mpi serialization
-LDFLAGS = $(addprefix $(BOOST_ROOT)/, $(addsuffix .a, $(addprefix libboost_, $(BOOST_LIBS))))
+LDFLAGS = -L$(BOOST_ROOT) $(addprefix -lboost_, $(BOOST_LIBS))
 
 SRC_DIR = src
 SRC_SUBDIRS = . math

@@ -3,12 +3,16 @@
 #include <iostream>
 #include <iterator>
 
+#include "boost/mpi/communicator.hpp"
+#include "boost/mpi/environment.hpp"
 #include "boost/numeric/ublas/io.hpp"
 #include "boost/numeric/ublas/matrix.hpp"
 #include "boost/numeric/ublas/vector.hpp"
 #include "boost/scoped_ptr.hpp"
+#include "math/mpi_utils.h"
 #include "math/newton.h"
 
+namespace mpi = boost::mpi;
 namespace ublas = boost::numeric::ublas;
 
 using boost::scoped_ptr;
@@ -47,41 +51,49 @@ void ReadProblemDescription(std::istream& is,
 }
 
 int main(int argc, char** argv) {
-  std::ios_base::sync_with_stdio(0);
+  mpi::environment env(argc, argv);
+  mpi::communicator world;
 
-  size_type m, n;
-  scoped_ptr<Matrix> A;
-  scoped_ptr<Vector> b, c;
-  double beta, external_tolerance, internal_tolerance;
+  if (world.rank() == 0) {
+    std::ios_base::sync_with_stdio(0);
 
-  std::clog << "Reading problem description..." << std::endl;
-  ReadProblemDescription(cin,
-			 &m, &n,
-			 &A, &b, &c,
-			 &beta,
-			 &external_tolerance,
-			 &internal_tolerance);
+    size_type m, n;
+    scoped_ptr<Matrix> A;
+    scoped_ptr<Vector> b, c;
+    double beta, external_tolerance, internal_tolerance;
 
-  math::Newton newton;
+    std::clog << "Reading problem description..." << std::endl;
+    ReadProblemDescription(cin,
+			   &m, &n,
+			   &A, &b, &c,
+			   &beta,
+			   &external_tolerance,
+			   &internal_tolerance);
 
-  Vector x0(n), p0(m);
-  std::fill(x0.begin(), x0.end(), 0.0);
-  std::fill(p0.begin(), p0.end(), 1.0);
+    math::Newton newton;
 
-  Vector result(n);
-  std::clog << "Solving linear system..." << std::endl;
-  newton.SolveLinearSystem(*A, *b, *c,
-			   x0, p0,
-			   beta,
-			   external_tolerance,
-			   internal_tolerance,
-			   &result);
-  // Display optiomal values.
-  std::copy(result.begin(),
-	    result.end(),
-	    std::ostream_iterator<double>(cout, " "));
-  cout << endl;
-  // Display optiomal function value.
-  cout << ublas::inner_prod(*c, result) << endl;
+    Vector x0(n), p0(m);
+    std::fill(x0.begin(), x0.end(), 0.0);
+    std::fill(p0.begin(), p0.end(), 1.0);
+
+    Vector result(n);
+    std::clog << "Solving linear system..." << std::endl;
+    newton.SolveLinearSystem(*A, *b, *c,
+			     x0, p0,
+			     beta,
+			     external_tolerance,
+			     internal_tolerance,
+			     &result);
+    // Display optiomal values.
+    std::copy(result.begin(),
+	      result.end(),
+	      std::ostream_iterator<double>(cout, " "));
+    cout << endl;
+    // Display optiomal function value.
+    cout << ublas::inner_prod(*c, result) << endl;
+  } else {
+    math::State state;
+    state.StartSlaveServer();
+  }
   return 0;
 }
