@@ -1,9 +1,6 @@
-CPP = mpic++
-CPPFLAGS = -Wall -DNDEBUG -O2 -I$(BOOST_ROOT) -Isrc
-
-BOOST_ROOT = /usr/local/lib
-BOOST_LIBS = mpi serialization
-LDFLAGS = -L$(BOOST_ROOT) $(addprefix -lboost_, $(BOOST_LIBS))
+CPP = g++
+CPPFLAGS = -Wall -O2 -Isrc -fopenmp
+LDFLAGS = -fopenmp
 
 SRC_DIR = src
 SRC_SUBDIRS = . math

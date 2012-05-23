@@ -2,20 +2,14 @@
 #define MATH_NEWTON_H_
 #pragma once
 
-#include "boost/numeric/ublas/matrix.hpp"
-#include "boost/numeric/ublas/vector.hpp"
-#include "boost/scoped_ptr.hpp"
-#include "math/mpi_utils.h"
+#include <valarray>
 
 namespace math {
 
 class Newton {
- public:
-  typedef ::boost::numeric::ublas::zero_matrix<double> ZeroMatrix;
-  typedef ::boost::numeric::ublas::identity_matrix<double> IdentityMatrix;
-  typedef ::boost::numeric::ublas::matrix<double> Matrix;
-  typedef ::boost::numeric::ublas::vector<double> Vector;
-  typedef Matrix::size_type size_type;
+public:
+  typedef std::valarray<double> Vector;
+  typedef std::valarray<Vector> Matrix;
 
   // Solves forward linear programming problem tr(c) * x -> min, where x
   // is an n-dimensional vector, such that A * x = b, and all components
@@ -31,13 +25,15 @@ class Newton {
       double internal_tolerance,
       Vector* result);
 
- private:
-  void Initialize(const Matrix& A,
-		  const Vector& b,
-		  const Vector& c,
-		  const Vector& x0,
-		  const Vector& p0,
-		  Vector* result);
+private:
+  void CheckSystem(const Matrix& A,
+		   const Vector& b,
+		   const Vector& c,
+		   const Vector& x0,
+		   const Vector& p0,
+		   Vector* result);
+
+  double GetVectorNorm(const Vector& v) const;
 
   // Solves A * x = b via preconditioned conjugate gradient method.
   void GetMaximizationDirection(const Matrix& A,
@@ -51,10 +47,6 @@ class Newton {
 			 double beta,
 			 Vector* projection,
 			 Vector* projection_plus);
-
-  size_type m_, n_;
-  ::boost::scoped_ptr<Vector> M_;
-  math::State state_;
 };
 
 }  // namespace math
