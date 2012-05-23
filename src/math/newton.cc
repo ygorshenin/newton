@@ -38,10 +38,12 @@ void Newton::SolveLinearSystem(const Matrix& A,
 
 #pragma omp parallel default(shared)
       {
+	// d <- max(projection, 0)
 #pragma omp for
         for (int i = 0; i < n; ++i)
           d[i] = projection[i] > 0.0 ? 1.0 : 0.0;
 
+	// g <- A * projection_plus - b
 #pragma omp for
         for (int i = 0; i < m; ++i) {
           g[i] = 0.0;
@@ -50,6 +52,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
           g[i] -= b[i];
         }
 
+	// H <- I + A * D * tr_A
 #pragma omp for
         for (int i = 0; i < m; ++i) {
           for (int j = 0; j < m; ++j) {
@@ -63,6 +66,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
 #pragma omp single
         GetMaximizationDirection(H, g, internal_tolerance, &delta_p);
 
+	// p <- p - delta_p
 #pragma omp for
         for (int i = 0; i < m; ++i)
           p[i] -= delta_p[i];
@@ -72,12 +76,15 @@ void Newton::SolveLinearSystem(const Matrix& A,
 
 #pragma omp parallel default(shared)
     {
+      // delta_x <- x - projection_plus
+      // x <- projection_plus
 #pragma omp for
       for (int i = 0; i < n; ++i) {
         delta_x[i] = x[i] - projection_plus[i];
         x[i] = projection_plus[i];
       }
 
+      // g <- A * x - b
 #pragma omp for
       for (int i = 0; i < m; ++i) {
         g[i] = 0.0;
@@ -143,6 +150,10 @@ void Newton::GetMaximizationDirection(const Matrix& H,
   assert(static_cast<int>(g.size()) == n);
   assert(static_cast<int>(x->size()) == n);
 
+  // m_ <- Diag(H) * Diag(H))
+  // r0_ <- g
+  // p_ <- m_ * g
+  // x_ <- 0
 #pragma omp parallel for default(shared)
   for (int i = 0; i < n; ++i) {
     m_[i] = H[i][i] * H[i][i];
@@ -162,6 +173,9 @@ void Newton::GetMaximizationDirection(const Matrix& H,
         v = 0.0;
       }
 
+      // r_ <- H * p_
+      // u <- (r0_tilded_, r0_)
+      // v <- (p_, r_)
 #pragma omp for reduction(+:u, v)
       for (int i = 0; i < n; ++i) {
         r_[i] = 0.0;
@@ -173,6 +187,8 @@ void Newton::GetMaximizationDirection(const Matrix& H,
 
       double alpha = -u / v;
 
+      // x <- x - alpha * p
+      // r_ <- r_ * alpha + r0_
 #pragma omp for
       for (int i = 0; i < n; ++i) {
         (*x)[i] -= alpha * p_[i];
@@ -192,6 +208,9 @@ void Newton::GetMaximizationDirection(const Matrix& H,
         v = 0.0;
       }
 
+      // r_tilded_ <- r_ * m_
+      // u <- (r_tilded_, r_)
+      // v <- (r0_tilded_, r0_)
 #pragma omp for reduction(+:u, v)
       for (int i = 0; i < n; ++i) {
         r_tilded_[i] = r_[i] * m_[i];
@@ -201,6 +220,9 @@ void Newton::GetMaximizationDirection(const Matrix& H,
 
       double beta = u / v;
 
+      // p_ <- p_ * beta + r_tilded_
+      // r0_ <- r_
+      // r0_tilded_ <- r_tilded_
 #pragma omp for
       for (int i = 0; i < n; ++i) {
         p_[i] = p_[i] * beta + r_tilded_[i];
@@ -224,6 +246,8 @@ void Newton::ComputeProjection(const Matrix& tr_A,
   assert(static_cast<int>(projection->size()) == n);
   assert(static_cast<int>(projection_plus->size()) == n);
 
+  // projection <- x + tr_A * p - beta * c
+  // projection_plus <- max(projection, 0)
 #pragma omp parallel for default(shared)
   for (int i = 0; i < n; ++i) {
     (*projection)[i] = 0.0;
