@@ -116,7 +116,7 @@ void Newton::Initialize(const Matrix& A,
 double Newton::GetVectorNorm(const Vector& v) const {
   int n = v.size();
   double global_norm = 0.0;
-#pragma omp parallel default(none) shared(global_norm, n, v)
+#pragma omp parallel default(shared)
   {
     double t;
     double local_norm = 0.0;
@@ -224,8 +224,7 @@ void Newton::ComputeProjection(const Matrix& tr_A,
   assert(static_cast<int>(projection->size()) == n);
   assert(static_cast<int>(projection_plus->size()) == n);
 
-#pragma omp parallel for default(none) \
-  shared(beta, c, m, n, p, projection, projection_plus, tr_A, x)
+#pragma omp parallel for default(shared)
   for (int i = 0; i < n; ++i) {
     (*projection)[i] = 0.0;
     for (int j = 0; j < m; ++j)
