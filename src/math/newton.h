@@ -26,12 +26,12 @@ public:
       Vector* result);
 
 private:
-  void CheckSystem(const Matrix& A,
-		   const Vector& b,
-		   const Vector& c,
-		   const Vector& x0,
-		   const Vector& p0,
-		   Vector* result);
+  void Initialize(const Matrix& A,
+                  const Vector& b,
+                  const Vector& c,
+                  const Vector& x0,
+                  const Vector& p0,
+                  Vector* result);
 
   double GetVectorNorm(const Vector& v) const;
 
@@ -47,6 +47,11 @@ private:
 			 double beta,
 			 Vector* projection,
 			 Vector* projection_plus);
+
+  Vector m_;
+  Vector r0_, r_;
+  Vector r0_tilded_, r_tilded_;
+  Vector p_;
 };
 
 }  // namespace math
