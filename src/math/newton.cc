@@ -38,7 +38,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
       for (int i = 0; i < n; ++i)
 	d[i] = projection[i] > 0.0 ? 1.0 : 0.0;
 
-#pragma omp parallel for default(none) shared(g, m, n, projection_plus)
+#pragma omp parallel for default(none) shared(A, b, g, m, n, projection_plus)
       for (int i = 0; i < m; ++i) {
 	g[i] = 0.0;
 	for (int j = 0; j < n; ++j)
@@ -46,7 +46,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
 	g[i] -= b[i];
       }
 
-#pragma omp parallel for default(none) shared(d, H, m, n)
+#pragma omp parallel for default(none) shared(A, d, H, m, n)
       for (int i = 0; i < m; ++i) {
 	for (int j = 0; j < m; ++j) {
 	  H[i][j] = 0.0;
@@ -70,7 +70,7 @@ void Newton::SolveLinearSystem(const Matrix& A,
       x[i] = projection_plus[i];
     }
 
-#pragma omp parallel for default(none) shared(g, m, n, x)
+#pragma omp parallel for default(none) shared(A, b, g, m, n, x)
     for (int i = 0; i < m; ++i) {
       g[i] = 0.0;
       for (int j = 0; j < n; ++j)
@@ -100,7 +100,7 @@ void Newton::CheckSystem(const Matrix& A,
 double Newton::GetVectorNorm(const Vector& v) const {
   int n = v.size();
   double global_norm = 0.0;
-#pragma omp parallel default(none) shared(global_norm, n)
+#pragma omp parallel default(none) shared(global_norm, n, v)
   {
     double t;
     double local_norm = 0.0;
@@ -131,7 +131,7 @@ void Newton::GetMaximizationDirection(const Matrix& H,
   Vector r0(n), r(n);
   Vector r0_tilded(n), r_tilded(n);
   Vector p(n);
-#pragma omp parallel for default(none) shared(m, n, p, r0, r0_tilded, x)
+#pragma omp parallel for default(none) shared(g, H, m, n, p, r0, r0_tilded, x)
   for (int i = 0; i < n; ++i) {
     m[i] = H[i][i] * H[i][i];
     r0[i] = g[i];
@@ -143,8 +143,8 @@ void Newton::GetMaximizationDirection(const Matrix& H,
   while (true) {
     u = 0.0;
     v = 0.0;
-#pragma omp parallel for default(none) reduction(+:u, v) \
-  shared(n, p, r, r0, r0_tilded)
+#pragma omp parallel for default(none) reduction(+:u, v)       \
+  shared(H, n, p, r, r0, r0_tilded)
     for (int i = 0; i < n; ++i) {
       r[i] = 0.0;
       for (int j = 0; j < n; ++j)
@@ -197,7 +197,7 @@ void Newton::ComputeProjection(const Matrix& tr_A,
   assert(static_cast<int>(projection_plus->size()) == n);
 
 #pragma omp parallel for default(none) \
-  shared(beta, projection, projection_plus, n, m)
+  shared(beta, c, m, n, p, projection, projection_plus, tr_A, x)
   for (int i = 0; i < n; ++i) {
     (*projection)[i] = 0.0;
     for (int j = 0; j < m; ++j)
