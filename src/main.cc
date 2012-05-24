@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <tr1/memory>
 #include <valarray>
@@ -70,12 +71,12 @@ int main() {
 			   internal_tolerance,
 			   &result);
   for (size_t i = 0; i < result.size(); ++i)
-    std::cout << result[i] << ' ';
+    std::cout << (int) round(result[i]) << ' ';
   std::cout << std::endl;
 
-  double f = 0.0;
+  int f = 0;
   for (size_t i = 0; i < result.size(); ++i)
-    f += (*c)[i] * result[i];
+    f += (int) round((*c)[i]) * (int) round(result[i]);
   std::cout << f << std::endl;
   return 0;
 }
